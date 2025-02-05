@@ -8,7 +8,7 @@ namespace MachineInfo
 {
     internal class HardwareInformationManager
     {
-        IHardwareInformationsGatherer _gatherer;
+        readonly IHardwareInformationsGatherer _gatherer;
 
         public HardwareInformationManager(IHardwareInformationsGatherer gatherer)
         {
@@ -16,26 +16,42 @@ namespace MachineInfo
         }
 
         public CpuDetails GetCpuDetails() => _gatherer.GetCpuDetails();
-        public GpuDetails GetGpuDetails() => _gatherer.GetGpuDetails();
         public RamDetails GetRamDetails() => _gatherer.GetRamDetails();
+        public GpuDetails GetGpuDetails() => _gatherer.GetGpuDetails();
         public OsDetails GetOsDetails() => _gatherer.GetOsDetails();
 
-        public string GetCpuString()
+        public string GetCpuSummary()
+        {
+            throw new NotImplementedException();
+        }
+        public string GetCpuDescription()
         {
             throw new NotImplementedException();
         }
 
-        public string GetGpuString()
+        public string GetRamSummary()
+        {
+            throw new NotImplementedException();
+        }
+        public string GetRamDescription()
         {
             throw new NotImplementedException();
         }
 
-        public string GetOsString()
+        public string GetGpuSummary()
+        {
+            throw new NotImplementedException();
+        }
+        public string GetGpuDescription()
         {
             throw new NotImplementedException();
         }
 
-        public string GetRamString()
+        public string GetOsSummary()
+        {
+            throw new NotImplementedException();
+        }
+        public string GetOsDescription()
         {
             throw new NotImplementedException();
         }
