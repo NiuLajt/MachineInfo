@@ -16,6 +16,12 @@ namespace MachineInfo
             this._path = _path;
         }
 
+
+        public HardwareData GetHardwareData()
+        {
+            return GetHardwareDataFromJsonFile();
+        }
+
         public CpuDetails GetCpuDetails()
         {
             var hardwareData = GetHardwareDataFromJsonFile();

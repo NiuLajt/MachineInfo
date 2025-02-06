@@ -1,66 +1,62 @@
 ﻿using Hardware.Info;
+using MachineInfo;
 using System.Management;
+using System.Runtime.Versioning;
 
-var hardwareInfo = new HardwareInfo();
-hardwareInfo.RefreshAll();
 
-Console.WriteLine("\nHARDWARE OF THIS MACHINE:");
-
-string cpuInformationString = "CPU info: ";
-foreach (var cpu in hardwareInfo.CpuList)
+const string path = "machineinfo_cache.json";
+FileHardwareInformationGatherer fileGatherer = new(path);
+HardwareInformationManager manager = new(fileGatherer);
+HardwareData data;
+if (manager.GetHardwareData() == null) // when anything goes wrong (empty file or something) this method returns null value.
 {
-    cpuInformationString += cpu.Name;
-    cpuInformationString += " with ";
-    cpuInformationString += cpu.NumberOfCores;
-    cpuInformationString += " cores ";
-    cpuInformationString += cpu.NumberOfLogicalProcessors;
-    cpuInformationString += " threads ";
+    manager._gatherer = new WindowsSystemHardwareInformationGatherer(); // then thats needed to assign another gatherer that gets data from system API, not from file
+    data = manager.GetHardwareData();
+    HardwareDataStorage dataStorage = new(path, data);
+    dataStorage.SaveDataToCacheFile(); // gathered data should be save to file for future
 }
-
-int ramMemoryAmount = 0;
-string memoryInformationString = "RAM info: ";
-foreach (var memory in hardwareInfo.MemoryList)
+else
 {
-    ramMemoryAmount += (int)Math.Round(memory.Capacity / 1024.0 / 1024 / 1024, 2);
-}
-memoryInformationString += ramMemoryAmount;
-memoryInformationString += " GB DDR4";
-
-string gpuInformationString = "GPU info: ";
-foreach (var gpu in hardwareInfo.VideoControllerList)
-{
-    gpuInformationString += gpu.Name;
-    gpuInformationString += " with ";
-    gpuInformationString += Math.Round(gpu.AdapterRAM / 1024.0 / 1024 / 1024, 2);
-    gpuInformationString += " GB of memory";
+    data = manager.GetHardwareData(); // if everything work as expected (file is ok) we use file to gather hardware data because thats faster
 }
 
 
-//string driveInformationString = "Drive info: ";
-//bool firstDrive = true;
-//List<string> drives = new List<string>();
-//using (var searcher = new ManagementObjectSearcher("SELECT Model, Size, MediaType FROM Win32_DiskDrive"))
-//{
-//    foreach (ManagementObject drive in searcher.Get())
-//    {
-//        string model = drive["Model"]?.ToString() ?? "Unknown";
-//        string mediaType = drive["MediaType"]?.ToString() ?? "Unknown";
-//        long sizeInBytes = drive["Size"] != null ? Convert.ToInt64(drive["Size"]) : 0;
-//        double sizeInGigabytes = Math.Round(sizeInBytes / 1024.0 / 1024 / 1024, 0);
-//        string interfaceType = drive["InterfaceType"]?.ToString() ?? "Unknown";
-//        string type;
-//        if (mediaType.Contains("SSD") || interfaceType == "NVMe") type = "SSD";
-//        else type = "HDD";
+// Command line arguments handling (arguments are optional, in there are no arguments then display general info)
+if (args.Length == 0)
+{
+    Console.WriteLine("MACHINE SPECS:");
+    Console.WriteLine("CPU: " + manager.GetCpuDescription());
+    Console.WriteLine("RAM: " + manager.GetRamDescription());
+    Console.WriteLine("GPU: " + manager.GetGpuDescription());
+    Console.WriteLine("OS: " + manager.GetOsDescription());
+}
+else if (args.Length == 1)
+{
+    switch (args[0])
+    {
+        case "-c":
+            Console.WriteLine(manager.GetCpuDescription());
+            break;
 
-//        if (!firstDrive) driveInformationString += ", ";
-//        firstDrive = false;
+        case "-m":
+            Console.WriteLine(manager.GetGpuDescription());
+            break;
 
-//        driveInformationString += $"{sizeInGigabytes} GB {type}";
-//    }
-//}
+        case "-g":
+            Console.WriteLine(manager.GetRamDescription());
+            break;
 
-Console.WriteLine(cpuInformationString);
-Console.WriteLine(memoryInformationString);
-Console.WriteLine(gpuInformationString);
-// Console.WriteLine(driveInformationString);
-Console.WriteLine("OS: Windows 11 Pro (64-bit)");
+        case "-s":
+            Console.WriteLine(manager.GetOsDescription());
+            break;
+
+
+        default:
+            Console.WriteLine("DUPA");
+            break;
+    }
+}
+else
+{
+    Console.WriteLine("DUPA DUPA DUPA");
+}

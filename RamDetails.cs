@@ -57,6 +57,7 @@ namespace MachineInfo
             return stringBuilder.ToString();
         }
 
+
         public string ToJson()
         {
             return JsonSerializer.Serialize(this);

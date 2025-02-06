@@ -8,6 +8,7 @@ namespace MachineInfo
 {
     internal interface IHardwareInformationsGatherer
     {
+        HardwareData GetHardwareData();
         CpuDetails GetCpuDetails();
         RamDetails GetRamDetails();
         GpuDetails GetGpuDetails();

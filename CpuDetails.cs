@@ -14,6 +14,7 @@ internal class CpuDetails : IHardwareComponent
     public float L2Cache { get; }
     public float L3Cache { get; }
 
+
     // Constructor uses builder pattern to create objects
     private CpuDetails(CpuDetailsBuilder builder)
     {
@@ -43,6 +44,7 @@ internal class CpuDetails : IHardwareComponent
 
         public CpuDetails Build() => new(this);
     }
+
 
     public string GetSummary()
     {
