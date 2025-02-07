@@ -80,7 +80,7 @@ namespace MachineInfo
 
         public HardwareData? GetHardwareDataFromJsonFile()
         {
-            if (!File.Exists(_path)) throw new FileNotFoundException();
+            if (!File.Exists(_path)) return null;
             else
             {
                 try
@@ -88,7 +88,7 @@ namespace MachineInfo
                     string json = File.ReadAllText(_path);
                     return JsonSerializer.Deserialize<HardwareData>(json);
                 }
-                catch (Exception)
+                catch
                 {
                     return null;
                 }

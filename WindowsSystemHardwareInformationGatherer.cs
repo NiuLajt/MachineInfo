@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Win32;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Management;
@@ -13,7 +14,7 @@ namespace MachineInfo
     {
         public HardwareData GetHardwareData()
         {
-            HardwareData hardwareData = new HardwareData
+            HardwareData hardwareData = new()
             {
                 Cpu = GetCpuDetails(),
                 Gpu = GetGpuDetails(),
@@ -27,12 +28,12 @@ namespace MachineInfo
         {
             CpuDetails.CpuDetailsBuilder builder = new()
             {
-                Name = GetCpuProperty("Name"),
-                Manufacturer = GetCpuProperty("Manufacturer"),
-                CoresCount = GetCpuPropertyInt("NumberOfCores"),
-                ThreadsCount = GetCpuPropertyInt("ThreadCount"),
-                BaseClockFrequency = GetCpuPropertyInt("MaxClockSpeed") / 1000,
-                Architecture = GetCpuProperty("Architecture") switch
+                Name = GetCpuName(),
+                Manufacturer = GetCpuManufacturer(),
+                CoresCount = GetCpuCores(),
+                ThreadsCount = GetCpuThreads(),
+                BaseClockFrequency = GetCpuClock(),
+                Architecture = GetCpuArchitecture() switch
                 {
                     "0" => "x86",
                     "1" => "MIPS",
@@ -43,9 +44,9 @@ namespace MachineInfo
                     "9" => "x64",
                     _ => "Unknown"
                 },
-                L1Cache = GetCpuPropertyInt("L1CacheSize"),
-                L2Cache = GetCpuPropertyInt("L2CacheSize"),
-                L3Cache = GetCpuPropertyInt("L3CacheSize"),
+                L1Cache = GetCpuL1CacheCapacity(),
+                L2Cache = GetCpuL2CacheCapacity(),
+                L3Cache = GetCpuL3CacheCapacity(),
             };
             return builder.Build();
         }
@@ -68,7 +69,7 @@ namespace MachineInfo
             {
                 Name = GetGpuProperty("Name"),
                 Manufacturer = GetGpuProperty("AdapterCompatibility"),
-                VideoMemoryAmount = GetGpuPropertyInt("AdapterRAM") / (1024 * 1024),
+                VideoMemoryAmount = GetGpuMemoryCapacity() / (1024 * 1024),
                 VideoMemoryType = GetGpuMemoryType(),
             };
             return builder.Build();
@@ -87,143 +88,302 @@ namespace MachineInfo
         }
 
 
-        private static string GetCpuProperty(string propertyName)
+
+        private static string GetCpuName()
         {
-            using var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_Processor");
-            foreach (ManagementObject obj in searcher.Get().Cast<ManagementObject>())
+            try
             {
-                return obj[propertyName]?.ToString() ?? "Unknown";
+                using var searcher = new ManagementObjectSearcher("SELECT Name FROM Win32_Processor");
+                foreach (ManagementObject obj in searcher.Get().Cast<ManagementObject>())
+                {
+                    return obj["Name"]?.ToString() ?? "Unknown";
+                }
             }
+            catch (ManagementException exception)
+            {
+                Console.WriteLine($"Error WMI(GetCpuName()): {exception.Message} {exception.Source}");
+            }
+
             return "Unknown";
         }
 
-        private static int GetCpuPropertyInt(string propertyName)
+        private static string GetCpuManufacturer()
         {
-            using var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_Processor");
-            foreach (ManagementObject obj in searcher.Get().Cast<ManagementObject>())
+            try
             {
-                return obj[propertyName] != null ? Convert.ToInt32(obj[propertyName]) : 0;
+                using var searcher = new ManagementObjectSearcher("SELECT Manufacturer FROM Win32_Processor");
+                foreach (ManagementObject obj in searcher.Get().Cast<ManagementObject>())
+                {
+                    return obj["Manufacturer"]?.ToString() ?? "Unknown";
+                }
             }
+            catch (ManagementException exception)
+            {
+                Console.WriteLine($"Error WMI(GetCpuManufacturer()): {exception.Message} {exception.Source}");
+            }
+
+            return "Unknown";
+        }
+
+        private static string GetCpuArchitecture()
+        {
+            try
+            {
+                using var searcher = new ManagementObjectSearcher("SELECT Architecture FROM Win32_Processor");
+                foreach (ManagementObject obj in searcher.Get().Cast<ManagementObject>())
+                {
+                    var architecture = obj["Architecture"];
+                    if (architecture != null)
+                    {
+                        switch ((ushort)architecture)
+                        {
+                            case 0:
+                                return "x86";
+                            case 1:
+                                return "MIPS";
+                            case 2:
+                                return "Alpha";
+                            case 3:
+                                return "PowerPC";
+                            case 6:
+                                return "IA64";
+                            case 9:
+                                return "x64";
+                            default:
+                                return "Unknown";
+                        }
+                    }
+                }
+            }
+            catch (ManagementException exception)
+            {
+                Console.WriteLine($"Error WMI(GetCpuArchitecture()): {exception.Message} {exception.Source}");
+            }
+
+            return "Unknown";
+        }
+
+        private static int GetCpuCores()
+        {
+            try
+            {
+                using var searcher = new ManagementObjectSearcher("SELECT NumberOfCores FROM Win32_Processor");
+                foreach (ManagementObject obj in searcher.Get().Cast<ManagementObject>())
+                {
+                    return obj["NumberOfCores"] != null ? Convert.ToInt32(obj["NumberOfCores"]) : 0;
+                }
+            }
+            catch (ManagementException exception) 
+            {
+                Console.WriteLine($"Error WMI(GetCpuCores()): {exception.Message} {exception.Source}");
+            }
+            
             return 0;
         }
 
+        private static int GetCpuThreads()
+        {
+            try
+            {
+                using var searcher = new ManagementObjectSearcher("SELECT NumberOfLogicalProcessors FROM Win32_Processor");
+                foreach (ManagementObject obj in searcher.Get().Cast<ManagementObject>())
+                {
+                    return obj["NumberOfLogicalProcessors"] != null ? Convert.ToInt32(obj["NumberOfLogicalProcessors"]) : 0;
+                }
+            }
+            catch (ManagementException exception)
+            {
+                Console.WriteLine($"Error WMI(GetCpuThreads()): {exception.Message} {exception.Source}");
+            }
+
+            return 0;
+        }
+
+        private static int GetCpuL1CacheCapacity()
+        {
+            RegistryKey key = Registry.LocalMachine.OpenSubKey(@"HARDWARE\DESCRIPTION\System\CentralProcessor\0");
+            var L1Cache = key?.GetValue("");
+        }
+
+
         private static int GetRamPropertyInt(string propertyName)
         {
-            using var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_PhysicalMemory");
-            foreach (ManagementObject obj in searcher.Get().Cast<ManagementObject>())
+            try
             {
-                return obj[propertyName] != null ? Convert.ToInt32(obj[propertyName]) : 0;
+                using var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_PhysicalMemory");
+                foreach (ManagementObject obj in searcher.Get().Cast<ManagementObject>())
+                {
+                    return obj[propertyName] != null ? Convert.ToInt32(obj[propertyName]) : 0;
+                }
             }
+            catch (ManagementException exception)
+            {
+                Console.WriteLine($"Error WMI(GetRamPropertyInt()): {exception.Message} {exception.Source}");
+            }
+
             return 0;
         }
 
         private static int GetRamCapacity()
         {
-            int totalCapacity = 0;
-            using var searcher = new ManagementObjectSearcher("SELECT Capacity FROM Win32_PhysicalMemory");
-            foreach (ManagementObject obj in searcher.Get().Cast<ManagementObject>())
+            try
             {
-                totalCapacity += Convert.ToInt32(obj["Capacity"]) / (1024 * 1024 * 1024);
+                int totalCapacity = 0;
+                using var searcher = new ManagementObjectSearcher("SELECT Capacity FROM Win32_PhysicalMemory");
+                foreach (ManagementObject obj in searcher.Get().Cast<ManagementObject>())
+                {
+                    // amount of memory is given in bytes.
+                    // There are many many bytes in modern machine so use long type for source value and convert it to gigabytes, then return gigabytes count
+                    long bytesInGigabyte = 1073741824; 
+                    long bytes = obj["Capacity"] != null ? Convert.ToInt64(obj["Capacity"]) : 0;
+                    long gigabytes = bytes / bytesInGigabyte;
+                    totalCapacity += Convert.ToInt32(gigabytes);
+                }
+                return totalCapacity;
             }
-            return totalCapacity;
+            catch (ManagementException exception)
+            {
+                Console.WriteLine($"Error WMI(GetRamCapacity()): {exception.Message} {exception.Source}");
+            }
+
+            return 0;
         }
 
         private static string GetRamType()
         {
-            using var searcher = new ManagementObjectSearcher("SELECT MemoryType FROM Win32_PhysicalMemory");
-            foreach (ManagementObject obj in searcher.Get().Cast<ManagementObject>())
+            try
             {
-                if (obj["MemoryType"] != null)
+                using var searcher = new ManagementObjectSearcher("SELECT MemoryType FROM Win32_PhysicalMemory");
+                foreach (ManagementObject obj in searcher.Get().Cast<ManagementObject>())
                 {
-                    int type = Convert.ToInt32(obj["MemoryType"]);
-                    return type switch
+                    if (obj["MemoryType"] != null)
                     {
-                        20 => "DDR",
-                        21 => "DDR2",
-                        22 => "DDR2 FB-DIMM",
-                        24 => "DDR3",
-                        26 => "DDR4",
-                        34 => "DDR5",
-                        _ => "Unknown"
-                    };
+                        int type = Convert.ToInt32(obj["MemoryType"]);
+                        return type switch
+                        {
+                            20 => "DDR",
+                            21 => "DDR2",
+                            22 => "DDR2 FB-DIMM",
+                            24 => "DDR3",
+                            26 => "DDR4",
+                            34 => "DDR5",
+                            _ => "Unknown"
+                        };
+                    }
                 }
             }
+            catch (ManagementException exception)
+            {
+                Console.WriteLine($"Error WMI(GetRamType()): {exception.Message} {exception.Source}");
+            }
+
             return "Unknown";
         }
 
         private static int GetRamLatency()
         {
-            using var searcher = new ManagementObjectSearcher("SELECT ConfiguredClockSpeed, ConfiguredCASLatency FROM Win32_PhysicalMemory");
-            foreach (ManagementObject obj in searcher.Get().Cast<ManagementObject>())
-            {
-                if (obj["ConfiguredCASLatency"] != null)
-                {
-                    return (int)obj["ConfiguredCASLatency"];
-                }
-            }
-            return 0;
+            RegistryKey key = Registry.LocalMachine.OpenSubKey(@"HARDWARE\DESCRIPTION\System\CentralProcessor\0");
+            var L1Cache = key?.GetValue("CAS_Latency");
+            if (L1Cache != null) return (int)L1Cache;
+            else return 0;
         }
 
         private static string GetGpuProperty(string propertyName)
         {
-            using var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_VideoController");
-            foreach (ManagementObject obj in searcher.Get().Cast<ManagementObject>())
+            try
             {
-                return obj[propertyName]?.ToString() ?? "Unknown";
+                using var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_VideoController");
+                foreach (ManagementObject obj in searcher.Get().Cast<ManagementObject>())
+                {
+                    return obj[propertyName]?.ToString() ?? "Unknown";
+                }
             }
+            catch (ManagementException exception)
+            {
+                Console.WriteLine($"Error WMI(GetGpuProperty()): {exception.Message} {exception.Source}");
+            }
+
             return "Unknown";
         }
 
-        private static int GetGpuPropertyInt(string propertyName)
+
+        private static int GetGpuMemoryCapacity()
         {
-            using var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_VideoController");
-            foreach (ManagementObject obj in searcher.Get().Cast<ManagementObject>())
+            try
             {
-                return obj[propertyName] != null ? Convert.ToInt32(obj[propertyName]) : 0;
+                int totalCapacity = 0;
+                using var searcher = new ManagementObjectSearcher("SELECT AdapterRAM FROM Win32_VideoController");
+                foreach (ManagementObject obj in searcher.Get().Cast<ManagementObject>())
+                {
+                    totalCapacity += Convert.ToInt32(obj["Capacity"]) / (1024 * 1024 * 1024);
+                }
+                return totalCapacity;
             }
+            catch (ManagementException exception)
+            {
+                Console.WriteLine($"Error WMI(GetGpuMemoryCapacity()): {exception.Message} {exception.Source}");
+            }
+
             return 0;
         }
 
         public static string GetGpuMemoryType()
         {
-            using var searcher = new ManagementObjectSearcher("SELECT VideoMemoryType FROM Win32_VideoController");
-            foreach (ManagementObject obj in searcher.Get().Cast<ManagementObject>())
+            try
             {
-                if (obj["VideoMemoryType"] != null)
+                using var searcher = new ManagementObjectSearcher("SELECT VideoMemoryType FROM Win32_VideoController");
+                foreach (ManagementObject obj in searcher.Get().Cast<ManagementObject>())
                 {
-                    int type = Convert.ToInt32(obj["VideoMemoryType"]);
-                    return type switch
+                    if (obj["VideoMemoryType"] != null)
                     {
-                        3 => "DRAM",
-                        4 => "VRAM",
-                        5 => "SRAM",
-                        6 => "WRAM",
-                        7 => "EDO RAM",
-                        8 => "Burst Synchronous DRAM",
-                        9 => "Pipelined Burst SRAM",
-                        10 => "CIM Memory",
-                        11 => "SGRAM",
-                        12 => "GDDR",
-                        13 => "GDDR2",
-                        14 => "GDDR3",
-                        15 => "GDDR4",
-                        16 => "GDDR5",
-                        17 => "GDDR6",
-                        18 => "GDDR6X",
-                        _ => "Unknown"
-                    };
+                        int type = Convert.ToInt32(obj["VideoMemoryType"]);
+                        return type switch
+                        {
+                            3 => "DRAM",
+                            4 => "VRAM",
+                            5 => "SRAM",
+                            6 => "WRAM",
+                            7 => "EDO RAM",
+                            8 => "Burst Synchronous DRAM",
+                            9 => "Pipelined Burst SRAM",
+                            10 => "CIM Memory",
+                            11 => "SGRAM",
+                            12 => "GDDR",
+                            13 => "GDDR2",
+                            14 => "GDDR3",
+                            15 => "GDDR4",
+                            16 => "GDDR5",
+                            17 => "GDDR6",
+                            18 => "GDDR6X",
+                            _ => "Unknown"
+                        };
+                    }
                 }
             }
+            catch (ManagementException exception)
+            {
+                Console.WriteLine($"Error WMI(GetGpuMemoryType()): {exception.Message} {exception.Source}");
+            }
+
             return "Unknown";
         }
 
+
         private static string GetOsProperty(string propertyName)
         {
-            using var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_OperatingSystem");
-            foreach (ManagementObject obj in searcher.Get().Cast<ManagementObject>())
+            try
             {
-                return obj[propertyName]?.ToString() ?? "Unknown";
+                using var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_OperatingSystem");
+                foreach (ManagementObject obj in searcher.Get().Cast<ManagementObject>())
+                {
+                    return obj[propertyName]?.ToString() ?? "Unknown";
+                }
             }
+            catch (ManagementException exception)
+            {
+                Console.WriteLine($"Error WMI(GetOsProperty()): {exception.Message} {exception.Source}");
+            }
+
             return "Unknown";
         }
     }

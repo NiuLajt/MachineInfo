@@ -10,6 +10,7 @@ HardwareInformationManager manager = new(fileGatherer);
 HardwareData data;
 if (manager.GetHardwareData() == null) // when anything goes wrong (empty file or something) this method returns null value.
 {
+    Console.WriteLine("magic happens");
     manager._gatherer = new WindowsSystemHardwareInformationGatherer(); // then thats needed to assign another gatherer that gets data from system API, not from file
     data = manager.GetHardwareData();
     HardwareDataStorage dataStorage = new(path, data);
@@ -17,6 +18,7 @@ if (manager.GetHardwareData() == null) // when anything goes wrong (empty file o
 }
 else
 {
+    Console.WriteLine("file logic happens");
     data = manager.GetHardwareData(); // if everything work as expected (file is ok) we use file to gather hardware data because thats faster
 }
 
@@ -25,10 +27,10 @@ else
 if (args.Length == 0)
 {
     Console.WriteLine("MACHINE SPECS:");
-    Console.WriteLine("CPU: " + manager.GetCpuDescription());
-    Console.WriteLine("RAM: " + manager.GetRamDescription());
-    Console.WriteLine("GPU: " + manager.GetGpuDescription());
-    Console.WriteLine("OS: " + manager.GetOsDescription());
+    Console.WriteLine("CPU: " + manager.GetCpuSummary());
+    Console.WriteLine("RAM: " + manager.GetRamSummary());
+    Console.WriteLine("GPU: " + manager.GetGpuSummary());
+    Console.WriteLine("OS: " + manager.GetOsSummary());
 }
 else if (args.Length == 1)
 {
